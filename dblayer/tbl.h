@@ -20,28 +20,7 @@ typedef struct {
 
 typedef struct {
     Schema *schema;
-
-    // the following are used for the current row
-    int numColumns;
-    byte **columns; // array of column values   
-
-    // the following are used for the current page
-    int numSlots;
-    int slotCountOffset;
-    int slotCountSize;
-    int slotSize;
-    int slotOffset;
-    int slotSizeOffset;
-    int slotSizeSize;
-    int freeSpaceOffset;
-    int freeSpaceSize;
-    int pageSize;
-    int pageNum;
-    byte *pageBuf;
-
-    //add file descriptors
     int fd;
-    
 } Table ;
 
 typedef int RecId;
