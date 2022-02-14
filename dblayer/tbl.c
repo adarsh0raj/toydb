@@ -24,13 +24,20 @@ int  getNthSlotOffset(int slot, char* pageBuf); UNIMPLEMENTED;
  */
 int
 Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
-{
-    UNIMPLEMENTED;
+{   
     // Initialize PF, create PF file,
     // allocate Table structure  and initialize and return via ptable
     // The Table structure only stores the schema. The current functionality
     // does not really need the schema, because we are only concentrating
     // on record storage. 
+
+    PF_CreateFile(dbname);
+    PF_OpenFile(dbname);
+
+    Table *table = (Table *) malloc(sizeof(Table));
+    table->schema = schema;
+
+
 }
 
 void
@@ -64,7 +71,7 @@ Table_Get(Table *tbl, RecId rid, byte *record, int maxlen) {
     // In the page get the slot offset of the record, and
     // memcpy bytes into the record supplied.
     // Unfix the page
-    return len; // return size of record
+    // return len; // return size of record
 }
 
 void
