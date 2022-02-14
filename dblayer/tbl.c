@@ -34,16 +34,35 @@ Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
     PF_CreateFile(dbname);
     PF_OpenFile(dbname);
 
-    Table *table = (Table *) malloc(sizeof(Table));
+    Table *table = malloc(sizeof(Table));
     table->schema = schema;
-
+    table->numColumns = schema->numColumns;
+    table->columns = schema->columns;
+    table->pageNum = 0;
+    table->pageBuf = malloc(PF_PAGE_SIZE);
+    table->numSlots = getNumSlots(table->pageBuf);
+    table->slotCountOffset = SLOT_COUNT_OFFSET;
+    table->slotCountSize = sizeof(int);
+    table->slotSizeOffset = table->slotCountOffset + table->slotCountSize;
+    table->slotSizeSize = sizeof(int);
+    table->freeSpaceOffset = table->slotSizeOffset + table->slotSizeSize;
+    table->freeSpaceSize = sizeof(int);
+    table->slotOffset = table->freeSpaceOffset + table->freeSpaceSize;
+    table->slotSize = PF_PAGE_SIZE - table->slotOffset;
+    table->slotSize = table->slotSize / table->numColumns;
+    *ptable = table;
+    
+    return 0;
 
 }
 
 void
 Table_Close(Table *tbl) {
-    UNIMPLEMENTED;
     // Unfix any dirty pages, close file.
+
+    PF_CloseFile(tbl->fd);
+    free(tbl->pageBuf);
+    free(tbl);
 }
 
 
