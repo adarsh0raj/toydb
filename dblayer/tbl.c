@@ -80,9 +80,11 @@ Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
     }
 
     checkerr(PF_CreateFile(dbname));
-    int fd = PF_OpenFile(dbname);
+
     Table *table = (Table *) malloc(sizeof(Table));
     table->schema = schema;
+
+    int fd = PF_OpenFile(dbname);
     table->fd = fd;
     *ptable = table;
 
@@ -93,11 +95,13 @@ void
 Table_Close(Table *tbl) {
 
     // Unfix any dirty pages, close file.
-
-    //unimplemented
-
+    int pageNum = -1, slot = -1;
+    
+    while(PF_GetNextPage(tbl->fd, &pageNum, &slot) != PFE_EOF) {
+        PF_UnfixPage(tbl->fd, pageNum, FALSE);
+    }
+    
     PF_CloseFile(tbl->fd);
-    free(tbl);
 }
 
 
