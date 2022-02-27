@@ -249,8 +249,6 @@ Table_Get(Table *tbl, RecId rid, byte *record, int maxlen) {
 void
 Table_Scan(Table *tbl, void *callbackObj, ReadFunc callbackfn) {
 
-    // UNIMPLEMENTED;
-
     // Iterate over all pages, and for each page, iterate over all
     // slots, and for each slot, call callbackfn.
 
