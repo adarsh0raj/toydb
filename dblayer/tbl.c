@@ -9,6 +9,10 @@
 #define SLOT_COUNT_OFFSET 2
 #define checkerr(err) {if (err < 0) {PF_PrintError(); exit(EXIT_FAILURE);}}
 
+int n_pages = 0, n_tables = 0;
+bool file_exists = 0, file_opened = 0, pf_inited = 0;
+int file_fd = 0;
+
 int  getLen(int slot, byte *pageBuf) {
 
     //unimplemented
@@ -56,7 +60,7 @@ int  getNthSlotOffset(int slot, char* pageBuf) {
     return DecodeShort(pageBuf + SLOT_COUNT_OFFSET*2 + slot*2);
 }
 
-int setNthSlotOffset(int slot, int offset, char* pageBuf, int len) {
+int setNthSlotOffset(int slot, char* pageBuf, int len) {
 
     //unimplemented
     if(slot > getNumSlots(pageBuf)) {
@@ -86,20 +90,39 @@ Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
 
     //unimplemented
 
-    PF_Init();
+    if(pf_inited == 0)
+    {
+        PF_Init();
+        pf_inited = 1;
+    }
 
     if(overwrite) {
         checkerr(PF_DestroyFile(dbname));
     }
 
-    PF_CreateFile(dbname);
+    if(file_exists == 0)
+    {
+        checkerr(PF_CreateFile(dbname));
+        file_exists = 1;
+    }
 
     Table *table = (Table *) malloc(sizeof(Table));
     table->schema = schema;
 
-    int fd = PF_OpenFile(dbname);
-    table->fd = fd;
-    *ptable = table;
+    if(file_opened == 0)
+    {
+        file_fd = PF_OpenFile(dbname);
+        file_opened = 1;
+    }
+    table->fd = file_fd;
+    table->dirty_pages = (int *) malloc(8 * sizeof(int));
+    table->n_dirty = 0;
+    table->dirty_array_size = 8;
+    table->top_page = -1;
+    table->curr_page_buff = NULL;
+
+    ptable[n_tables] = table;
+    n_tables = n_tables + 1;
 
     return 0;
 }
@@ -108,14 +131,16 @@ void
 Table_Close(Table *tbl) {
 
     // Unfix any dirty pages, close file.
-    int pageNum = -1;
-    char *pageBuf = (char *) malloc(PF_PAGE_SIZE);
-    
-    while(PF_GetNextPage(tbl->fd, &pageNum, &pageBuf) != PFE_EOF) {
-        PF_UnfixPage(tbl->fd, pageNum, FALSE);
-    }
+    int pageNum = 0;
+
+    for(int i=0; i<tbl->n_dirty; i++)
+        PF_UnfixPage(tbl->fd, tbl->dirty_pages[i], TRUE);
+
+    tbl->n_dirty = 0;
     
     PF_CloseFile(tbl->fd);
+
+    file_opened = 0;
 }
 
 
@@ -132,21 +157,50 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
     char *pageBuf = (char *) malloc(PF_PAGE_SIZE);
     int slot = 0;
 
-    // Allocate a new page if there is not enough space
-    if(len > getLen(getNumSlots(pageBuf), pageBuf)) {
+    if(n_pages == 0)
+    {
+        //Allocate and set up new page
         checkerr(PF_AllocPage(tbl->fd, &pageNum, &pageBuf));
-        setNumSlots(pageBuf, getNumSlots(pageBuf) + 1);
-        setNthSlotOffset(getNumSlots(pageBuf), pageBuf, pageNum, len);
-        slot = getNumSlots(pageBuf) - 1;
+        tbl->top_page = pageNum;
+        tbl->n_dirty = 1;
+        tbl->dirty_pages[0] = pageNum;
+        tbl->curr_page_buff = pageBuf;
+
+        //page header
+        EncodeShort((short) 1, record);
+        EncodeShort((short) (2 * SLOT_COUNT_OFFSET), record+2);
+
+        //record header
+        setNthSlotOffset(0, pageBuf, len);
     }
-    else {
-        // Find the first free slot on the page
-        while(getNthSlotOffset(slot, pageBuf) != 0) {
-            slot++;
+
+    else
+    {
+        pageBuf = tbl->curr_page_buff;
+
+        // Allocate a new page if there is not enough space
+        if(len > getLen(getNumSlots(pageBuf), pageBuf)) {
+            checkerr(PF_AllocPage(tbl->fd, &pageNum, &pageBuf));
+            setNumSlots(pageBuf, getNumSlots(pageBuf) + 1);
+            setNthSlotOffset(getNumSlots(pageBuf), pageBuf, len);
+            slot = getNumSlots(pageBuf) - 1;
         }
+        else {
+            // Find the first free slot on the page
+            while(getNthSlotOffset(slot, pageBuf)) {
+                slot = getNumSlots(pageBuf);
+                setNthSlotOffset(slot, pageBuf, len);
+            }
+        }
+        // copy record in free space
+        memcpy(pageBuf + getNthSlotOffset(slot, pageBuf), record, len);
+
+        if(tbl->n_dirty > 0 || tbl->dirty_pages[tbl->n_dirty-1] != pageNum)
+        {
+            //code for adding a dirty page number to the array
+        }
+
     }
-    // copy record in free space
-    memcpy(pageBuf + getNthSlotOffset(slot, pageBuf), record, len);
 
     // Update slot and free space index information on top of page.
     // setNthSlotOffset(slot, pageBuf, pageNum);
@@ -162,8 +216,8 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
  */
 int
 Table_Get(Table *tbl, RecId rid, byte *record, int maxlen) {
-    int slot = rid & 0xFFFF;
     int pageNum = rid >> 16;
+    int slot = rid & 0xFFFF;
 
     //unimplemented
 
@@ -178,12 +232,12 @@ Table_Get(Table *tbl, RecId rid, byte *record, int maxlen) {
     int len = getLen(slot, pageBuf);
 
     //copy the record
-    memcpy(record, pageBuf + slotOffset, len);
+    memcpy(record, pageBuf + slotOffset, ((len < maxlen) ? len : maxlen));
 
     //unfix the page
-    PF_UnfixPage(tbl->fd, pageNum, FALSE);
+    // PF_UnfixPage(tbl->fd, pageNum, FALSE);
 
-    return len;
+    return ((len < maxlen) ? len : maxlen);
 
 
     // In the page get the slot offset of the record, and
@@ -209,15 +263,15 @@ Table_Scan(Table *tbl, void *callbackObj, ReadFunc callbackfn) {
         int slot = 0;
         while(getNthSlotOffset(slot, pageBuf) != -1) {
             rid = (pageNum << 16) | slot;
-            callbackfn(callbackObj, rid, (byte *) (pageBuf + getNthSlotOffset(slot, pageBuf)), getLen(slot, pageBuf));
+            int recordLen = getLen(slot, pageBuf);
+            byte* record = (byte *) malloc(recordLen * sizeof(byte));
+            memcpy(record, pageBuf + getNthSlotOffset(slot, pageBuf), recordLen);
+            callbackfn(callbackObj, rid, record, recordLen);
             slot++;
         }
-        PF_UnfixPage(tbl->fd, pageNum, FALSE);
     }
 
     // For each page obtained using PF_GetFirstPage and PF_GetNextPage
     //    for each record in that page,
     //          callbackfn(callbackObj, rid, record, recordLen)
 }
-
-

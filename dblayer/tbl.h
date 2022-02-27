@@ -21,6 +21,11 @@ typedef struct {
 typedef struct {
     Schema *schema;
     int fd;
+    int *dirty_pages;
+    int n_dirty;
+    int dirty_array_size;
+    int top_page;
+    byte *curr_page_buff;
 } Table ;
 
 typedef int RecId;
