@@ -25,13 +25,33 @@ in codec.c to convert strings into compact binary representations
  */
 int
 encode(Schema *sch, char **fields, byte *record, int spaceLeft) {
-    UNIMPLEMENTED;
+
     // for each field
     //    switch corresponding schema type is
     //        VARCHAR : EncodeCString
     //        INT : EncodeInt
     //        LONG: EncodeLong
     // return the total number of bytes encoded into record
+
+    int i;
+    int totalBytes = 0;
+
+    for (i = 0; i < sch->numColumns; i++) {
+        switch (sch->columns[i]->type) {
+            case VARCHAR:
+                totalBytes += EncodeCString(fields[i], record + totalBytes, spaceLeft - totalBytes);
+                break;
+            case INT:
+                totalBytes += EncodeInt(atoi(fields[i]), record + totalBytes);
+                break;
+            case LONG:
+                totalBytes += EncodeLong(atol(fields[i]), record + totalBytes);
+                break;
+            default:
+                printf("Error: Unknown type %d\n", sch->columns[i]->type);
+                exit(1);
+        }
+    }
 }
 
 Schema *
@@ -46,40 +66,55 @@ loadCSV() {
     char buf[MAX_LINE_LEN];
     char *line = fgets(buf, MAX_LINE_LEN, fp);
     if (line == NULL) {
-	fprintf(stderr, "Unable to read data.csv\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Unable to read data.csv\n");
+        exit(EXIT_FAILURE);
     }
 
     // Open main db file
     Schema *sch = parseSchema(line);
     Table *tbl;
 
-    UNIMPLEMENTED;
+    //Added
+
+    Table_Open(DB_NAME, sch, true, &tbl);
+
+    checkerr(PF_CreateFile(INDEX_NAME));
+    int indexFD = PF_OpenFile(INDEX_NAME);
+
+    AM_CreateIndex(DB_NAME, 0, 'i', 4);
+
+    //Till here
 
     char *tokens[MAX_TOKENS];
     char record[MAX_PAGE_SIZE];
 
     while ((line = fgets(buf, MAX_LINE_LEN, fp)) != NULL) {
-	int n = split(line, ",", tokens);
-	assert (n == sch->numColumns);
-	int len = encode(sch, tokens, record, sizeof(record));
-	RecId rid;
 
-	UNIMPLEMENTED;
+        int n = split(line, ",", tokens);
+        assert (n == sch->numColumns);
+        int len = encode(sch, tokens, record, sizeof(record));
+        RecId rid;
 
-	printf("%d %s\n", rid, tokens[0]);
+        //Added
 
-	// Indexing on the population column 
-	int population = atoi(tokens[2]);
+        Table_Insert(tbl, record, len, &rid);
+        printf("%d %s\n", rid, tokens[0]);
 
-	UNIMPLEMENTED;
-	// Use the population field as the field to index on
-	    
-	checkerr(err);
+        // Indexing on the population column 
+        int population = atoi(tokens[2]);
+
+        int err = AM_InsertEntry(indexFD, 'i', 4, population, rid);
+        
+        //Till here
+        // Use the population field as the field to index on
+            
+        checkerr(err);
     }
+
     fclose(fp);
     Table_Close(tbl);
-    err = PF_CloseFile(indexFD);
+
+    int err = PF_CloseFile(indexFD);
     checkerr(err);
     return sch;
 }

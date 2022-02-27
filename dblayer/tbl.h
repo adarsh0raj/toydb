@@ -21,6 +21,7 @@ typedef struct {
 typedef struct {
     Schema *schema;
     int fd;
+    int n_pages;
     int *dirty_pages;
     int n_dirty;
     int dirty_array_size;

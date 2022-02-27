@@ -9,7 +9,7 @@
 #define SLOT_COUNT_OFFSET 2
 #define checkerr(err) {if (err < 0) {PF_PrintError(); exit(EXIT_FAILURE);}}
 
-int n_pages = 0, n_tables = 0;
+int n_tables = 0;
 bool file_exists = 0, file_opened = 0, pf_inited = 0;
 int file_fd = 0;
 
@@ -97,7 +97,7 @@ Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
     }
 
     if(overwrite) {
-        checkerr(PF_DestroyFile(dbname));
+        PF_DestroyFile(dbname);
     }
 
     if(file_exists == 0)
@@ -114,6 +114,7 @@ Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
         file_fd = PF_OpenFile(dbname);
         file_opened = 1;
     }
+
     table->fd = file_fd;
     table->dirty_pages = (int *) malloc(8 * sizeof(int));
     table->n_dirty = 0;
@@ -131,15 +132,13 @@ void
 Table_Close(Table *tbl) {
 
     // Unfix any dirty pages, close file.
-    int pageNum = 0;
 
-    for(int i=0; i<tbl->n_dirty; i++)
+    for(int i=0; i<tbl->n_dirty; i++){ 
         PF_UnfixPage(tbl->fd, tbl->dirty_pages[i], TRUE);
-
-    tbl->n_dirty = 0;
+    }
     
+    tbl->n_dirty = 0;
     PF_CloseFile(tbl->fd);
-
     file_opened = 0;
 }
 
@@ -157,7 +156,7 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
     char *pageBuf = (char *) malloc(PF_PAGE_SIZE);
     int slot = 0;
 
-    if(n_pages == 0)
+    if(tbl->n_pages == 0)
     {
         //Allocate and set up new page
         checkerr(PF_AllocPage(tbl->fd, &pageNum, &pageBuf));

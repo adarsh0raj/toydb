@@ -21,7 +21,6 @@ printRow(void *callbackObj, RecId rid, byte *row, int len) {
 	 
 void
 index_scan(Table *tbl, Schema *schema, int indexFD, int op, int value) {
-    UNIMPLEMENTED;
     /*
     Open index ...
     while (true) {
