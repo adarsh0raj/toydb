@@ -62,7 +62,6 @@ void setNumSlots(byte *pageBuf, int nslots) {
 
 int setNthSlotOffset(int slot, char* pageBuf, int len) {
 
-    //unimplemented
     if(slot > getNumSlots(pageBuf)) {
         return -1;
     }
@@ -162,6 +161,7 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
     {
         //Allocate and set up new page
         checkerr(PF_AllocPage(tbl->fd, &pageNum, &pageBuf));
+        tbl->n_pages++;
         tbl->top_page = pageNum;
         tbl->n_dirty = 1;
         tbl->dirty_pages[0] = pageNum;
@@ -184,6 +184,7 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
         // Allocate a new page if there is not enough space
         if(len > getLen(getNumSlots(pageBuf), pageBuf)) {
             checkerr(PF_AllocPage(tbl->fd, &pageNum, &pageBuf));
+            tbl->n_pages++;
             EncodeShort((short) 1, pageBuf);
             EncodeShort((short) (2 * SLOT_COUNT_OFFSET), pageBuf+2);
 
