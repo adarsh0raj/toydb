@@ -79,7 +79,6 @@ loadCSV() {
 
     Table_Open(DB_NAME, sch, true, &tbl);
 
-
     //destroy index file if existed
     PF_DestroyFile(INDEX_NAME);
     
