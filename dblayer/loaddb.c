@@ -52,6 +52,7 @@ encode(Schema *sch, char **fields, byte *record, int spaceLeft) {
                 exit(1);
         }
     }
+    return totalBytes;
 }
 
 Schema *
@@ -78,10 +79,14 @@ loadCSV() {
 
     Table_Open(DB_NAME, sch, true, &tbl);
 
-    checkerr(PF_CreateFile(INDEX_NAME));
+
+    //destroy index file if existed
+    PF_DestroyFile(INDEX_NAME);
+    
+    int err = AM_CreateIndex(DB_NAME, 0, 'i', 4);
     int indexFD = PF_OpenFile(INDEX_NAME);
 
-    AM_CreateIndex(DB_NAME, 0, 'i', 4);
+    printf("table opened and index initialized\n");
 
     //Till here
 
@@ -98,23 +103,29 @@ loadCSV() {
         //Added
 
         Table_Insert(tbl, record, len, &rid);
-        printf("%d %s\n", rid, tokens[0]);
+        printf("Record insert: %d %s %s %s\n", rid, tokens[0], tokens[1], tokens[2]);
 
         // Indexing on the population column 
-        int population = atoi(tokens[2]);
+        char *popu = malloc(sizeof(int));
+        EncodeInt(atoi(tokens[2]), popu);
 
-        int err = AM_InsertEntry(indexFD, 'i', 4, population, rid);
+        printf("Upto here\n");
+
+        // Use the population field as the field to index on
+        int er = AM_InsertEntry(indexFD, 'i', 4, popu, rid);
+
+        if (er != AME_OK) {
+            printf("AM insert error\n");
+            exit(1);
+        }
         
         //Till here
-        // Use the population field as the field to index on
-            
-        checkerr(err);
     }
 
     fclose(fp);
     Table_Close(tbl);
 
-    int err = PF_CloseFile(indexFD);
+    err = PF_CloseFile(indexFD);
     checkerr(err);
     return sch;
 }

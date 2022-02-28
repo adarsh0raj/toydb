@@ -21,13 +21,14 @@ printRow(void *callbackObj, RecId rid, byte *row, int len) {
         switch (schema->columns[i]->type) {
             case VARCHAR:
                 cursor += DecodeCString(cursor, str, len - (cursor - row));
+                printf("%s", str);
                 break;
             case INT:
                 printf("%d", DecodeInt(cursor));
                 cursor += sizeof(int);
                 break;
             case LONG:
-                printf("%ld", DecodeLong(cursor));
+                printf("%lld", DecodeLong(cursor));
                 cursor += sizeof(long);
                 break;
             default:
@@ -67,12 +68,11 @@ index_scan(Table *tbl, Schema *schema, int indexFD, int op, int value) {
         }
 
         //fetch rid from table
-        RecId rid = AM_GetRecId(indexFD, index_entry);
+        RecId rid = index_entry;
 
         // tableGet record from rid
         byte *record = malloc(MAX_PAGE_SIZE);
         int len = Table_Get(tbl, rid, record, MAX_PAGE_SIZE);
-
 
         //printRow(...)
         printRow(schema, rid, record, len);

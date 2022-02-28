@@ -13,6 +13,22 @@ int n_tables = 0;
 bool file_exists = 0, file_opened = 0, pf_inited = 0;
 int file_fd = 0;
 
+int  getNumSlots(byte *pageBuf){
+
+    //unimplemented
+    return DecodeShort(pageBuf);
+}
+
+int  getNthSlotOffset(int slot, char* pageBuf) {
+
+    //unimplemented
+    if(slot > getNumSlots(pageBuf)) {
+        return -1;
+    }
+
+    return DecodeShort(pageBuf + SLOT_COUNT_OFFSET*2 + slot*2);
+}
+
 int  getLen(int slot, byte *pageBuf) {
 
     //unimplemented
@@ -35,12 +51,6 @@ int  getLen(int slot, byte *pageBuf) {
         return -1;
 }
 
-int  getNumSlots(byte *pageBuf){
-
-    //unimplemented
-    return DecodeShort(pageBuf);
-}
-
 void setNumSlots(byte *pageBuf, int nslots) {
 
     //unimplemented
@@ -48,16 +58,6 @@ void setNumSlots(byte *pageBuf, int nslots) {
 
     //set pointer of latest slot record as the free space pointer
     memcpy(pageBuf + SLOT_COUNT_OFFSET + (nslots) * 2, pageBuf + SLOT_COUNT_OFFSET, 2);
-}
-
-int  getNthSlotOffset(int slot, char* pageBuf) {
-
-    //unimplemented
-    if(slot > getNumSlots(pageBuf)) {
-        return -1;
-    }
-
-    return DecodeShort(pageBuf + SLOT_COUNT_OFFSET*2 + slot*2);
 }
 
 int setNthSlotOffset(int slot, char* pageBuf, int len) {
@@ -117,6 +117,7 @@ Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
     }
 
     table->fd = file_fd;
+    table->n_pages = 0;
     table->dirty_pages = (int *) malloc(8 * sizeof(int));
     table->n_dirty = 0;
     table->dirty_array_size = 8;
