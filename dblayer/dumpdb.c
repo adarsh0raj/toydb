@@ -99,10 +99,33 @@ main(int argc, char **argv) {
         int indexFD = PF_OpenFile(INDEX_NAME);
         checkerr(indexFD);
 
-        // Ask for populations less than 100000, then more than 100000. Together they should
-        // yield the complete database.
-        // index_scan(tbl, schema, indexFD, LESS_THAN_EQUAL, 100000);
-        index_scan(tbl, schema, indexFD, GREATER_THAN, 100000);
+        if(argc == 4) {
+            if(stricmp("LESS_THAN_EQUAL", argv[2]) == 0) {
+                index_scan(tbl, schema, indexFD, LESS_THAN_EQUAL, atoi(argv[3]));
+            } 
+            else if(stricmp("GREATER_THAN_EQUAL", argv[2]) == 0) {
+                index_scan(tbl, schema, indexFD, GREATER_THAN_EQUAL, atoi(argv[3]));
+            } 
+            else if(stricmp("EQUAL", argv[2]) == 0) {
+                index_scan(tbl, schema, indexFD, EQUAL, atoi(argv[3]));
+            } 
+            else if(stricmp("LESS_THAN", argv[2]) == 0) {
+                index_scan(tbl, schema, indexFD, LESS_THAN, atoi(argv[3]));
+            } 
+            else if(stricmp("GREATER_THAN", argv[2]) == 0) {
+                index_scan(tbl, schema, indexFD, GREATER_THAN, atoi(argv[3]));
+            } 
+            else {
+                printf("Error: Unknown operator %s\n", argv[2]);
+                exit(1);
+            }
+        } 
+        else {
+            // Ask for populations less than 100000, then more than 100000. Together they should
+            // yield the complete database.
+            index_scan(tbl, schema, indexFD, LESS_THAN_EQUAL, 100000);
+            index_scan(tbl, schema, indexFD, GREATER_THAN, 100000);
+        }
     }
     Table_Close(tbl);
 }
