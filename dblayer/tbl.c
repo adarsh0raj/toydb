@@ -55,9 +55,6 @@ void setNumSlots(byte *pageBuf, int nslots) {
 
     //unimplemented
     EncodeShort(nslots, pageBuf);
-
-    //set pointer of latest slot record as the free space pointer
-    memcpy(pageBuf + SLOT_COUNT_OFFSET + (nslots) * 2, pageBuf + SLOT_COUNT_OFFSET, 2);
 }
 
 int setNthSlotOffset(int slot, char* pageBuf, int len) {
@@ -65,9 +62,15 @@ int setNthSlotOffset(int slot, char* pageBuf, int len) {
     if(slot > getNumSlots(pageBuf)) {
         return -1;
     }
+
+    int nslots = slot + 1;
+
+    setNumSlots(pageBuf, nslots);
     
     EncodeShort(DecodeShort(pageBuf + SLOT_COUNT_OFFSET) - len, pageBuf + SLOT_COUNT_OFFSET*2 + slot*2);
-    EncodeShort(DecodeShort(pageBuf + SLOT_COUNT_OFFSET) - len, pageBuf + SLOT_COUNT_OFFSET);
+
+    //update free space pointer
+    EncodeShort(DecodeShort(pageBuf + SLOT_COUNT_OFFSET) - len - 1, pageBuf + SLOT_COUNT_OFFSET);
 
     return 0;
 }
@@ -167,9 +170,11 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
         tbl->dirty_pages[0] = pageNum;
         tbl->curr_page_buff = pageBuf;
 
+        printf("Hello\n");
+
         //page header
-        EncodeShort((short) 1, pageBuf);
-        EncodeShort((short) (2 * SLOT_COUNT_OFFSET), pageBuf+2);
+        EncodeShort((short) 0, pageBuf);
+        EncodeShort((short) 4095, pageBuf+2);
 
         //record header
         setNthSlotOffset(0, pageBuf, len);
@@ -180,13 +185,15 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
     else
     {
         pageBuf = tbl->curr_page_buff;
+        pageNum = tbl->top_page;
 
         // Allocate a new page if there is not enough space
         if(len > getLen(getNumSlots(pageBuf), pageBuf)) {
             checkerr(PF_AllocPage(tbl->fd, &pageNum, &pageBuf));
             tbl->n_pages++;
-            EncodeShort((short) 1, pageBuf);
-            EncodeShort((short) (2 * SLOT_COUNT_OFFSET), pageBuf+2);
+            printf("Hi\n");
+            EncodeShort((short) 0, pageBuf);
+            EncodeShort((short) 4095, pageBuf+2);
 
             setNthSlotOffset(0, pageBuf, len);
         }
@@ -201,22 +208,27 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
         // copy record in free space
         memcpy(pageBuf + getNthSlotOffset(slot, pageBuf), record, len);
 
-        if(tbl->n_dirty > 0 || tbl->dirty_pages[tbl->n_dirty-1] != pageNum)
-        {
-            //code for adding a dirty page number to the array
-            if(tbl->n_dirty == tbl->dirty_array_size)
-            {
-                tbl->dirty_array_size = tbl->dirty_array_size * 2;
-                tbl->dirty_pages = (int *) realloc(tbl->dirty_pages, tbl->dirty_array_size * sizeof(int));
-            }
-
-            tbl->dirty_pages[tbl->n_dirty] = pageNum;
-            tbl->n_dirty = tbl->n_dirty + 1;
-        }
-
     }
 
+    if(tbl->n_dirty > 0 || tbl->dirty_pages[tbl->n_dirty-1] != pageNum)
+    {
+        //code for adding a dirty page number to the array
+        if(tbl->n_dirty == tbl->dirty_array_size)
+        {
+            tbl->dirty_array_size = tbl->dirty_array_size * 2;
+            tbl->dirty_pages = (int *) realloc(tbl->dirty_pages, tbl->dirty_array_size * sizeof(int));
+        }
+
+        tbl->dirty_pages[tbl->n_dirty] = pageNum;
+        tbl->n_dirty = tbl->n_dirty + 1;
+    }
+
+    *rid = (pageNum << 16) | slot;
+
     tbl->curr_page_buff = pageBuf;
+    tbl->top_page = pageNum;
+
+    return 0;
 
     // Update slot and free space index information on top of page.
     // setNthSlotOffset(slot, pageBuf, pageNum);
