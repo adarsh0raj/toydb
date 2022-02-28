@@ -234,23 +234,15 @@ Table_Get(Table *tbl, RecId rid, byte *record, int maxlen) {
     int pageNum = rid >> 16;
     int slot = rid & 0xFFFF;
 
-    //unimplemented
-
     //get the page 
     char *pageBuf = (char *) malloc(PF_PAGE_SIZE);
-    checkerr(PF_GetThisPage(tbl->fd, pageNum, &pageBuf));
-
-    //get the slot offset of record
-    int slotOffset = getNthSlotOffset(slot, pageBuf);
+    PF_GetThisPage(tbl->fd, pageNum, &pageBuf);
 
     //get the length of record
     int len = getLen(slot, pageBuf);
 
     //copy the record
-    memcpy(record, pageBuf + slotOffset, ((len < maxlen) ? len : maxlen));
-
-    //unfix the page
-    // PF_UnfixPage(tbl->fd, pageNum, FALSE);
+    memcpy(record, pageBuf + getNthSlotOffset(slot, pageBuf), ((len < maxlen) ? len : maxlen));
 
     return ((len < maxlen) ? len : maxlen);
 

@@ -7,8 +7,6 @@
 #include "../amlayer/am.h"
 #define checkerr(err) {if (err < 0) {PF_PrintError(); exit(1);}}
 
-#define MAX_PAGE_SIZE 4096
-
 void
 printRow(void *callbackObj, RecId rid, byte *row, int len) {
     Schema *schema = (Schema *) callbackObj;
@@ -44,6 +42,7 @@ printRow(void *callbackObj, RecId rid, byte *row, int len) {
 
 #define DB_NAME "data.db"
 #define INDEX_NAME "data.db.0"
+#define MAX_PAGE_SIZE 4000
 	 
 void
 index_scan(Table *tbl, Schema *schema, int indexFD, int op, int value) {
@@ -75,9 +74,7 @@ index_scan(Table *tbl, Schema *schema, int indexFD, int op, int value) {
         byte *record = malloc(MAX_PAGE_SIZE);
         int len = Table_Get(tbl, rid, record, MAX_PAGE_SIZE);
 
-        //printRow(...)
         printRow(schema, rid, record, len);
-        printf("\n");
     }    
 
     AM_CloseIndexScan(scanDesc);
@@ -104,7 +101,7 @@ main(int argc, char **argv) {
 
         // Ask for populations less than 100000, then more than 100000. Together they should
         // yield the complete database.
-        index_scan(tbl, schema, indexFD, LESS_THAN_EQUAL, 100000);
+        // index_scan(tbl, schema, indexFD, LESS_THAN_EQUAL, 100000);
         index_scan(tbl, schema, indexFD, GREATER_THAN, 100000);
     }
     Table_Close(tbl);
