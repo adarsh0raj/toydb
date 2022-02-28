@@ -20,7 +20,7 @@ printRow(void *callbackObj, RecId rid, byte *row, int len) {
     for (i = 0; i < schema->numColumns; i++) {
         switch (schema->columns[i]->type) {
             case VARCHAR:
-                cursor += DecodeCString(cursor, str, len - (cursor - row));
+                cursor += DecodeCString(cursor, str, len - (cursor - row)) + 2;
                 printf("%s", str);
                 break;
             case INT:
@@ -39,6 +39,7 @@ printRow(void *callbackObj, RecId rid, byte *row, int len) {
             printf(",");
         }
     }
+    printf("\n");
 }
 
 #define DB_NAME "data.db"

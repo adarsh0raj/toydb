@@ -9,9 +9,9 @@
 #define SLOT_COUNT_OFFSET 2
 #define checkerr(err) {if (err < 0) {PF_PrintError(); exit(EXIT_FAILURE);}}
 
-int n_tables = 0;
-bool file_exists = 0, file_opened = 0, pf_inited = 0;
-int file_fd = 0;
+// int n_tables = 0;
+// bool file_exists = 0, file_opened = 0, pf_inited = 0;
+// int file_fd = 0;
 
 int  getNumSlots(byte *pageBuf){
 
@@ -88,32 +88,18 @@ Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
     // does not really need the schema, because we are only concentrating
     // on record storage. 
 
-    //unimplemented
-
-    if(pf_inited == 0)
-    {
-        PF_Init();
-        pf_inited = 1;
-    }
+    PF_Init();
 
     if(overwrite) {
         PF_DestroyFile(dbname);
     }
-
-    if(file_exists == 0)
-    {
-        checkerr(PF_CreateFile(dbname));
-        file_exists = 1;
-    }
+    
+    PF_CreateFile(dbname);
 
     Table *table = (Table *) malloc(sizeof(Table));
     table->schema = schema;
 
-    if(file_opened == 0)
-    {
-        file_fd = PF_OpenFile(dbname);
-        file_opened = 1;
-    }
+    int file_fd = PF_OpenFile(dbname);
 
     table->fd = file_fd;
     table->n_pages = 0;
@@ -123,8 +109,8 @@ Table_Open(char *dbname, Schema *schema, bool overwrite, Table **ptable)
     table->top_page = -1;
     table->curr_page_buff = NULL;
 
-    ptable[n_tables] = table;
-    n_tables = n_tables + 1;
+    *ptable = table;
+    // n_tables = n_tables + 1;
 
     return 0;
 }
@@ -140,7 +126,7 @@ Table_Close(Table *tbl) {
     
     tbl->n_dirty = 0;
     PF_CloseFile(tbl->fd);
-    file_opened = 0;
+    // file_opened = 0;
 }
 
 
@@ -286,19 +272,18 @@ Table_Scan(Table *tbl, void *callbackObj, ReadFunc callbackfn) {
     char *pageBuf = (char *) malloc(PF_PAGE_SIZE);
     RecId rid;
 
+    // For each page obtained using PF_GetFirstPage and PF_GetNextPage
+    //    for each record in that page,
+    //          callbackfn(callbackObj, rid, record, recordLen)
+
     while(PF_GetNextPage(tbl->fd, &pageNum, &pageBuf) != PFE_EOF) {
-        int slot = 0;
-        while(getNthSlotOffset(slot, pageBuf) != -1) {
+        int nslots = getNumSlots(pageBuf);
+        for (int slot=0; slot< nslots; slot++) {
             rid = (pageNum << 16) | slot;
             int recordLen = getLen(slot, pageBuf);
             byte* record = (byte *) malloc(recordLen * sizeof(byte));
             memcpy(record, pageBuf + getNthSlotOffset(slot, pageBuf), recordLen);
             callbackfn(callbackObj, rid, record, recordLen);
-            slot++;
         }
     }
-
-    // For each page obtained using PF_GetFirstPage and PF_GetNextPage
-    //    for each record in that page,
-    //          callbackfn(callbackObj, rid, record, recordLen)
 }
