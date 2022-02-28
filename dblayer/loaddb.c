@@ -85,8 +85,6 @@ loadCSV() {
     int err = AM_CreateIndex(DB_NAME, 0, 'i', 4);
     int indexFD = PF_OpenFile(INDEX_NAME);
 
-    printf("table opened and index initialized\n");
-
     //Till here
 
     char *tokens[MAX_TOKENS];
@@ -108,7 +106,7 @@ loadCSV() {
         char *popu = malloc(sizeof(int));
         EncodeInt(atoi(tokens[2]), popu);
 
-        printf("Upto here\n");
+        // printf("Upto here\n");
 
         // Use the population field as the field to index on
         int er = AM_InsertEntry(indexFD, 'i', 4, popu, rid);

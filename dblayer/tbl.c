@@ -21,7 +21,6 @@ int  getNumSlots(byte *pageBuf){
 
 int  getNthSlotOffset(int slot, char* pageBuf) {
 
-    //unimplemented
     if(slot > getNumSlots(pageBuf)) {
         return -1;
     }
@@ -30,8 +29,6 @@ int  getNthSlotOffset(int slot, char* pageBuf) {
 }
 
 int  getLen(int slot, byte *pageBuf) {
-
-    //unimplemented
 
     int nslots = DecodeShort(pageBuf);
 
@@ -154,8 +151,6 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
     // space
     // Update slot and free space index information on top of page.
 
-    //unimplemented
-
     int pageNum = -1;
     char *pageBuf = (char *) malloc(PF_PAGE_SIZE);
     int slot = 0;
@@ -170,7 +165,7 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
         tbl->dirty_pages[0] = pageNum;
         tbl->curr_page_buff = pageBuf;
 
-        printf("Hello\n");
+        // printf("Hello First Table Page Created\n");
 
         //page header
         EncodeShort((short) 0, pageBuf);
@@ -187,22 +182,28 @@ Table_Insert(Table *tbl, byte *record, int len, RecId *rid) {
         pageBuf = tbl->curr_page_buff;
         pageNum = tbl->top_page;
 
+        // printf("table page found existing\n");
+
         // Allocate a new page if there is not enough space
+        
         if(len > getLen(getNumSlots(pageBuf), pageBuf)) {
+
+            // printf("table page found and len is not enough\n");
+
             checkerr(PF_AllocPage(tbl->fd, &pageNum, &pageBuf));
             tbl->n_pages++;
-            printf("Hi\n");
+
             EncodeShort((short) 0, pageBuf);
             EncodeShort((short) 4095, pageBuf+2);
 
             setNthSlotOffset(0, pageBuf, len);
         }
         else {
-            // Find the first free slot on the page
-            while(getNthSlotOffset(slot, pageBuf) != -1) {
-                slot = getNumSlots(pageBuf);
-            }
 
+            // printf("table page found and len is enough\n");
+
+            // Find the first free slot on the page
+            slot = getNumSlots(pageBuf);
             setNthSlotOffset(slot, pageBuf, len);
         }
         // copy record in free space
