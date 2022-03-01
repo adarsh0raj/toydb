@@ -27,9 +27,9 @@ int  getNthSlotOffset(int slot, char* pageBuf) {
 
 int  getLen(int slot, byte *pageBuf) {
 
-    // Length of the nth slot
     int nslots = DecodeShort(pageBuf);
 
+    // Length of the nth slot calculated using slot offsets in the page
     if(slot == 0) {
         return PF_PAGE_SIZE - getNthSlotOffset(slot, pageBuf);
     }
@@ -37,6 +37,9 @@ int  getLen(int slot, byte *pageBuf) {
         return getNthSlotOffset(slot-1, pageBuf) - getNthSlotOffset(slot, pageBuf);
     }
 
+    /* This is for a special case when we are enquiring the available free space in the page
+    for inserting a new record. In this case, we return the available free space (minus the space
+    required for the slot header) */
     else if(slot == nslots)
     {
         return DecodeShort(pageBuf + SLOT_COUNT_OFFSET) - SLOT_COUNT_OFFSET * 2 - (nslots+1) * 2 + 1;
@@ -48,7 +51,7 @@ int  getLen(int slot, byte *pageBuf) {
 
 void setNumSlots(byte *pageBuf, int nslots) {
 
-    // Set the number of slots in the page
+    // Set the number of slots in the page header
 
     EncodeShort(nslots, pageBuf);
 }
@@ -63,8 +66,10 @@ int setNthSlotOffset(int slot, char* pageBuf, int len) {
 
     int nslots = slot + 1;
 
+    //update page header
     setNumSlots(pageBuf, nslots);
     
+    //encode slot header
     EncodeShort(DecodeShort(pageBuf + SLOT_COUNT_OFFSET) - len, pageBuf + SLOT_COUNT_OFFSET*2 + slot*2);
 
     //update free space pointer
