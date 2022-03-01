@@ -20,13 +20,13 @@ typedef struct {
 
 typedef struct {
     Schema *schema;
-    int fd;
-    int n_pages;
-    int *dirty_pages;
-    int n_dirty;
-    int dirty_array_size;
-    int top_page;
-    byte *curr_page_buff;
+    int fd;                            // file descriptor
+    int n_pages;                       // Number of Pages
+    int *dirty_pages;                  // Array of Dirty Pages
+    int n_dirty;                       // Number of Dirty Pages
+    int dirty_array_size;              // Size of Dirty Pages Array
+    int top_page;                      // Top Page
+    byte *curr_page_buff;              // Current Page Buffer
 } Table ;
 
 typedef int RecId;
