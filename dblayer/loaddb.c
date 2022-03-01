@@ -33,25 +33,35 @@ encode(Schema *sch, char **fields, byte *record, int spaceLeft) {
     //        LONG: EncodeLong
     // return the total number of bytes encoded into record
 
+    // Index variable and total bytes encoded
     int i;
     int totalBytes = 0;
 
     for (i = 0; i < sch->numColumns; i++) {
         switch (sch->columns[i]->type) {
+
+            // Case 1 varchar field
             case VARCHAR:
                 totalBytes += EncodeCString(fields[i], record + totalBytes, spaceLeft - totalBytes);
                 break;
+
+            // Case 2 int field
             case INT:
                 totalBytes += EncodeInt(atoi(fields[i]), record + totalBytes);
                 break;
+
+            // Case 3 long field
             case LONG:
                 totalBytes += EncodeLong(atol(fields[i]), record + totalBytes);
                 break;
+            
+            // Case 4 error
             default:
                 printf("Error: Unknown type %d\n", sch->columns[i]->type);
                 exit(1);
         }
     }
+    // return total number of bytes encoded
     return totalBytes;
 }
 
@@ -75,17 +85,16 @@ loadCSV() {
     Schema *sch = parseSchema(line);
     Table *tbl;
 
-    //Added
-
+    // Open main db file as a table
     Table_Open(DB_NAME, sch, true, &tbl);
 
     //destroy index file if existed
     PF_DestroyFile(INDEX_NAME);
     
+    // Create index file and open it using PF_OpenFile 
     int err = AM_CreateIndex(DB_NAME, 0, 'i', 4);
     int indexFD = PF_OpenFile(INDEX_NAME);
 
-    //Till here
 
     char *tokens[MAX_TOKENS];
     char record[MAX_PAGE_SIZE];
@@ -97,31 +106,30 @@ loadCSV() {
         int len = encode(sch, tokens, record, sizeof(record));
         RecId rid;
 
-        //Added
-
+        // Insert record into table
         Table_Insert(tbl, record, len, &rid);
-        printf("Record insert: %d %s %s %s\n", rid, tokens[0], tokens[1], tokens[2]);
 
-        // Indexing on the population column 
+        // Uncomment the below line to print the records inserted
+        // printf("Record insert: %d %s %s %s\n", rid, tokens[0], tokens[1], tokens[2]);
+
+        // Encode the population field as char *
         char *popu = malloc(sizeof(int));
         EncodeInt(atoi(tokens[2]), popu);
 
-        // printf("Upto here\n");
-
-        // Use the population field as the field to index on
+        // Use the population field as the field to index on 
         int er = AM_InsertEntry(indexFD, 'i', 4, popu, rid);
 
+        // Check if the insertion was successful
         if (er != AME_OK) {
             printf("AM insert error\n");
             exit(1);
         }
-        
-        //Till here
     }
 
     fclose(fp);
     Table_Close(tbl);
 
+    // Close the index file
     err = PF_CloseFile(indexFD);
     checkerr(err);
     return sch;

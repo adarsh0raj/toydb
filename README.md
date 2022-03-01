@@ -1,50 +1,43 @@
-#CS631 Assignment.  Jan 25, 2019.
+### CS387 Lab 5 - Implementing DB Internals with ToyDB
 
-You are given a toydb with some missing parts that you have to fill in.
-This assignment is conceptually split into three tasks. 
+## Names and Roll Numbers
 
-#1. Building a record layer
+1. Adarsh Raj - 190050004
+2. Gudipaty Aniket - 190050041
 
-First, you need to fill in the missing code in nthe dblayer directory. It is a record or tuple layer on top of a physical layer library (pflayer, which is provided to you). The physical layer library presents a paged file abstraction, where a file is logically split into pages. 
+## References
 
-You have to structure each page as a slotted-page structure. That is, the header at the top of the page must contain the following information: an array of pointers (offset within the page) to each record, the number of such records, and the pointer to the free space. The actual record data is stored bottom up from the  page. Tuples are addressed by a 4 byte 'rid' (record id), where the first 2 bytes identify a page, and the other two are an offset in the slot header.
-Note that this layer treats the record as a blob of bytes, and does not know about columns or fields. 
+1. https://www.javatpoint.com/file-organization-storage#:~:text=The%20primary%20technique%20of%20the,indirect%20pointers%20to%20the%20record.
+2. https://www.javatpoint.com/dbms-file-organization
+3. https://www.geeksforgeeks.org/function-pointer-in-c/
 
-For this part of the assignment, search for "UNMPLEMENTED" in tbl.c and tbl.h, and put in the relevant code.
+## Contributions
 
-#2. Testing: loading CSV data into db, and creating an index.
+1. Adarsh Raj:
 
-We will load up a table using the API above, from data contained in a CSV file. You will be supplied code in loaddb.c to do all the relevant parts; you just have to fill in the "UNIMPLEMENTED" parts.
-The first line of the CSV file contains schema information; for example:
-      country:varchar,  population:int, capital:varchar
+    - Added unimplemented code in loaddb.c and dumpdb.c (Task 2 and Task 3)
+    - Ran the code for different variations of dumpdb and added screenshots
+    - Made README and Added comments for task 2 and 3
 
-The data type can be one of "varchar", "int", "long"; the maximum sizes of each field is assumed to be less than the page size, and further all the fields in a row together fit in a page.
+2. Gudipaty Aniket
 
-The rough steps are as follows:
-     for each row in the csv file,
-          split it up into fields
-	  encode each field (according to type) into one record buffer
-	  rid = Table_Insert(record)
-	  AM_InsertEntry(index field, rid)
+    - Added codes for different length functions after researching about the slotted page structure
+    - Added table structure in tbl.h and all unimplemented functions in tbl.c
+    - Added comments for the task 1
 
-The idea is to use the table API you just built, which returns a record id, then supply that record id to a BTree indexer. That code (with the prefix AM_, for access method) is made available to you. You simply have to read the docs.
+## Execution
 
-#3. Testing: Retrieving the data.
+Steps for Executing the given database:
 
-Fill in code in dumpdb.c.
+1. In pflayer directory, run makefile using make first and then do the same in the amlayer directory.
+2. Keep the database file named "data.csv" in the dblayer directory.
+3. Run make file using make in the dblayer directory.
+4. Run ./loaddb in the dblayer directory to load the database (in data.db) and create the index (in data.db.0).
+5. Dumpdb is used to retrive the data from the database in one of the following two ways:
 
-dumpdb has two ways to retrieve data (depending on a command-line argument).
+    - "./dumpdb s" in the dblayer directory to retrive the data in sequential order, using Table_Scan.
+    - "./dumpdb i" in the dblayer directory to retrive the data using index scan. To change the index operation and value, change the       attributes in index_scan() function call in dumpdb.c
 
-"dumpdb s" does a sequential scan, implemennted using Table_Scan
-"dumpdb i" does an index scan. Use the AM_ methods to do a scan of the index, and for each record id, invoke
-Table_Get to fetch the record. 
+    - "./dumpdb i <condition> <value>" can also be used to retrive data from database using index scan and satisfying the given conditions.
 
-In both cases, you have to decode the record to print it back in the same format as the csv file, so that we can compare the original CSV file with the version reconstructed from the database. There should be no difference.
-
-
-# Miscellaneous details:
-
-1. Familiarize yourself with the am.ps and pf.ps docs on the parts that are already built. You don't need to
-    understand the internals though.
-
-2. Invoke make in each of the pflayer and amlayer directories before building the dblayer.
+6. To reload the database, make clean in dblayer directory and then follow from step 2 onwards.
